@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Hub Invoice Exporter</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --border: #e4e2dd;
+      --text: #1a1916;
+      --text-muted: #9a9790;
+      --accent: #1a1916;
+      --accent-light: #f0ede8;
+      --robot: #499281;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      width: min(640px, 100%);
+      height: min(860px, calc(100dvh - 4rem));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      background: var(--surface);
+    }
+    @media (max-width: 660px) {
+      body { padding: 1rem 0.5rem; }
+      .app { height: calc(100dvh - 2rem); }
+    }
+    @media (max-width: 480px) {
+      body { padding: 0; align-items: stretch; }
+      .app { width: 100%; height: 100dvh; border-radius: 0; border: none; box-shadow: none; }
+    }
+
+    .header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+    }
+    .logo-wrap {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      border: 1px solid #ffffff;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .logo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .header-title {
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+    .restart-btn {
+      margin-left: auto;
+      background: transparent;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .restart-btn:hover {
+      background: var(--accent-light);
+      color: var(--text);
+    }
+    .restart-btn svg { width: 16px; height: 16px; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 1.25rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+      scroll-behavior: smooth;
+    }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1.75rem 1.25rem 1.25rem;
+      background: var(--surface);
+    }
+    .hero-icon {
+      width: 64px;
+      height: 64px;
+      background: #000000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .hero-icon svg { width: 42px; height: 42px; }
+    .hero-title {
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      margin-top: 0.2rem;
+    }
+    .hero-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.5;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 1rem;
+      width: 100%;
+      animation: fadeUp 0.2s ease forwards;
+      opacity: 0;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+    .avatar.bot { background: #000000; }
+    .avatar.bot svg { width: 18px; height: 18px; }
+
+    .message-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .bubble {
+      font-size: 0.93rem;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .bubble.typing::after {
+      content: '▋';
+      display: inline-block;
+      font-size: 0.78em;
+      vertical-align: middle;
+      margin-left: 1px;
+      animation: blink 0.65s step-start infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .form-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      margin-top: 0.25rem;
+    }
+    .field-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .field-label {
+      font-size: 0.88rem;
+      color: #3a3834;
+      font-weight: 500;
+    }
+    .field-label .req {
+      color: #c0392b;
+      margin-left: 2px;
+    }
+
+    input[type="text"],
+
+
+    /* Custom date picker */
+    .date-input-wrap {
+      position: relative;
+    }
+    .date-display {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 2.4rem 0.6rem 0.8rem;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s;
+      display: flex;
+      align-items: center;
+    }
+    .date-display.placeholder { color: var(--text-muted); }
+    .date-display:hover, .date-display.open { border-color: #aaa9a5; }
+    .date-cal-icon {
+      position: absolute;
+      right: 0.7rem;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--text-muted);
+    }
+    .date-picker-popup {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 100;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+      padding: 0.75rem;
+      width: 260px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .date-picker-popup.open { display: block; }
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .cal-nav {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      line-height: 1;
+      transition: background 0.12s, color 0.12s;
+    }
+    .cal-nav:hover { background: var(--accent-light); color: var(--text); }
+    .cal-month-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .cal-dow {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 0.2rem 0;
+    }
+    .cal-day {
+      font-size: 0.78rem;
+      text-align: center;
+      padding: 0.3rem 0;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text);
+      transition: background 0.1s, color 0.1s;
+    }
+    .cal-day:hover { background: var(--accent-light); }
+    .cal-day.today { font-weight: 600; color: #499281; }
+    .cal-day.selected { background: #499281; color: #fff; font-weight: 600; }
+    .cal-day.selected:hover { background: #3a7d6e; }
+    .cal-day.empty { cursor: default; }
+    .cal-day.empty:hover { background: none; }
+
+
+
+    .next-btn {
+      background: #1a1916;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1.6rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.05s;
+      align-self: flex-start;
+      margin-top: 0.15rem;
+    }
+    .next-btn:hover { opacity: 0.8; transform: scale(0.98); }
+    .next-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .typing-dots {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      animation: tdBounce 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes tdBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-5px); }
+    }
+
+    .result-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.7;
+      margin-top: 0.4rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .result-wrap a {
+      color: #499281;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .result-wrap a:hover {
+      color: #3a7d6e;
+    }
+
+    .ended-note {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      padding: 0.5rem 0;
+      font-family: 'DM Mono', monospace;
+    }
+
+
+
+    .footer {
+      flex-shrink: 0;
+      padding: 0.75rem 1.25rem 1rem;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    .powered-by-text {
+      text-align: center;
+      display: block;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+    .powered-by-text a {
+      color: #7a7874;
+      text-decoration: none;
+    }
+    .powered-by-text a:hover { color: var(--text); text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <header class="header">
+    <div class="logo-wrap">
+      <img src="https://raw.githubusercontent.com/somethingsomethingdigital/hub-invoice-exporter/04a4fc3b843a52fcd78cfc437baa166e3be3b793/hub_logo.png" alt="Hub">
+    </div>
+    <button class="restart-btn" id="globalRestartBtn" title="Restart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="messages" id="messages">
+    <div class="hero" id="heroSection">
+      <div class="hero-icon">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="14" width="44" height="32" rx="5" fill="white"/>
+          <rect x="18" y="22" width="28" height="3" rx="1.5" fill="#499281" opacity="0.6"/>
+          <rect x="18" y="29" width="20" height="3" rx="1.5" fill="#499281" opacity="0.4"/>
+          <rect x="18" y="36" width="24" height="3" rx="1.5" fill="#499281" opacity="0.4"/>
+          <rect x="24" y="46" width="16" height="8" rx="2" fill="white" opacity="0.85"/>
+          <rect x="20" y="52" width="24" height="3" rx="1.5" fill="white" opacity="0.6"/>
+        </svg>
+      </div>
+      <span class="hero-title">Hub Invoice Exporter</span>
+      <span class="hero-subtitle">Export invoices by date range and recipient. Fill in the details below to get started.</span>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <span class="powered-by-text">Powered by <a href="https://www.somethingsomething.digital" target="_blank" rel="noopener noreferrer">Something Something Digital</a></span>
+  </footer>
+</div>
+
+<script>
+const WEBHOOK_URL = 'https://hook.us1.make.com/16t6j7ne8pjd3y54jbh8945urtey7ab5';
+
+let activeConversation = true;
+let waitRow = null;
+
+const msgsEl = () => document.getElementById('messages');
+const scrollBot = () => setTimeout(() => { const m = msgsEl(); m.scrollTop = m.scrollHeight; }, 70);
+
+function robotSVG() {
+  return `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="14" width="44" height="32" rx="5" fill="white"/>
+    <rect x="18" y="22" width="28" height="3" rx="1.5" fill="#499281" opacity="0.6"/>
+    <rect x="18" y="29" width="20" height="3" rx="1.5" fill="#499281" opacity="0.4"/>
+    <rect x="18" y="36" width="24" height="3" rx="1.5" fill="#499281" opacity="0.4"/>
+    <rect x="24" y="46" width="16" height="8" rx="2" fill="white" opacity="0.85"/>
+  </svg>`;
+}
+
+function createRow(sender) {
+  const row = document.createElement('div');
+  row.className = `message-row ${sender}`;
+  const av = document.createElement('div');
+  av.className = `avatar ${sender}`;
+  if (sender === 'bot') av.innerHTML = robotSVG();
+  row.appendChild(av);
+  const body = document.createElement('div');
+  body.className = 'message-body';
+  row.appendChild(body);
+  msgsEl().appendChild(row);
+  scrollBot();
+  return body;
+}
+
+function typeText(text, body, speed = 18) {
+  return new Promise(resolve => {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble typing';
+    body.appendChild(bubble);
+    scrollBot();
+    let i = 0;
+    const iv = setInterval(() => {
+      bubble.textContent = text.slice(0, ++i);
+      scrollBot();
+      if (i >= text.length) {
+        clearInterval(iv);
+        bubble.classList.remove('typing');
+        resolve(bubble);
+      }
+    }, speed);
+  });
+}
+
+function botMsg(text) {
+  if (!activeConversation) return Promise.resolve(null);
+  const body = createRow('bot');
+  return typeText(text, body).then(() => { scrollBot(); return body; });
+}
+
+function showWaiting() {
+  const body = createRow('bot');
+  waitRow = body.parentElement;
+  const dots = document.createElement('div');
+  dots.className = 'typing-dots';
+  dots.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  body.appendChild(dots);
+  scrollBot();
+}
+
+function hideWaiting() {
+  if (waitRow) { waitRow.remove(); waitRow = null; }
+}
+
+function disableForms() {
+  msgsEl().querySelectorAll('input, select, .next-btn').forEach(el => { if (el) el.disabled = true; });
+  msgsEl().querySelectorAll('.date-display').forEach(el => {
+    el.style.pointerEvents = 'none';
+    el.style.opacity = '0.5';
+  });
+}
+
+function fullReset() {
+  activeConversation = true;
+  hideWaiting();
+  const hero = document.getElementById('heroSection');
+  const heroHTML = hero ? hero.outerHTML : '';
+  msgsEl().innerHTML = heroHTML;
+  setTimeout(() => showForm(), 400);
+}
+
+// ── Custom calendar ──────────────────────────────────────────
+function buildCalendar(containerId, displayId, hiddenId) {
+  const container = document.getElementById(containerId);
+  const display = document.getElementById(displayId);
+  const hidden = document.getElementById(hiddenId);
+  if (!container || !display || !hidden) return;
+
+  let current = new Date();
+  let viewYear = current.getFullYear();
+  let viewMonth = current.getMonth();
+  let selectedDate = null;
+
+  const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function render() {
+    const popup = container.querySelector('.date-picker-popup');
+    popup.innerHTML = '';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'cal-header';
+    const prev = document.createElement('button');
+    prev.className = 'cal-nav'; prev.textContent = '‹';
+    prev.addEventListener('click', e => { e.stopPropagation(); viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} render(); });
+    const next = document.createElement('button');
+    next.className = 'cal-nav'; next.textContent = '›';
+    next.addEventListener('click', e => { e.stopPropagation(); viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} render(); });
+    const lbl = document.createElement('span');
+    lbl.className = 'cal-month-label';
+    lbl.textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+    hdr.appendChild(prev); hdr.appendChild(lbl); hdr.appendChild(next);
+    popup.appendChild(hdr);
+
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+    DAYS.forEach(d => { const dh = document.createElement('div'); dh.className='cal-dow'; dh.textContent=d; grid.appendChild(dh); });
+
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+    const today = new Date();
+
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement('div'); blank.className='cal-day empty'; grid.appendChild(blank);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+      cell.textContent = d;
+      const isToday = today.getDate()===d && today.getMonth()===viewMonth && today.getFullYear()===viewYear;
+      if (isToday) cell.classList.add('today');
+      if (selectedDate && selectedDate.getDate()===d && selectedDate.getMonth()===viewMonth && selectedDate.getFullYear()===viewYear) cell.classList.add('selected');
+      cell.addEventListener('click', e => {
+        e.stopPropagation();
+        selectedDate = new Date(viewYear, viewMonth, d);
+        const yyyy = viewYear;
+        const mm = String(viewMonth+1).padStart(2,'0');
+        const dd = String(d).padStart(2,'0');
+        hidden.value = `${yyyy}-${mm}-${dd}`;
+        display.textContent = selectedDate.toLocaleDateString('en-NZ', {day:'numeric', month:'long', year:'numeric'});
+        display.classList.remove('placeholder');
+        closeAll();
+      });
+      grid.appendChild(cell);
+    }
+    popup.appendChild(grid);
+  }
+
+  display.addEventListener('click', e => {
+    e.stopPropagation();
+    const popup = container.querySelector('.date-picker-popup');
+    const isOpen = popup.classList.contains('open');
+    closeAll();
+    if (!isOpen) { render(); popup.classList.add('open'); display.classList.add('open'); }
+  });
+}
+
+function closeAll() {
+  document.querySelectorAll('.date-picker-popup.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.date-display.open').forEach(d => d.classList.remove('open'));
+}
+document.addEventListener('click', closeAll);
+
+// ── Custom select ─────────────────────────────────────────────
+function buildSelect(wrapId, displayId, hiddenId, options, onChange) {
+  const wrap = document.getElementById(wrapId);
+  const display = document.getElementById(displayId);
+  const hidden = document.getElementById(hiddenId);
+  const dropdown = wrap.querySelector('.custom-select-dropdown');
+  if (!wrap || !display || !hidden || !dropdown) return;
+
+  options.forEach((opt, i) => {
+    const item = document.createElement('div');
+    item.className = 'select-option' + (opt.divider ? ' divider' : '');
+    item.textContent = opt.label;
+    item.dataset.value = opt.value;
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      hidden.value = opt.value;
+      display.textContent = opt.label;
+      display.classList.remove('placeholder');
+      dropdown.querySelectorAll('.select-option').forEach(o => o.classList.remove('selected'));
+      item.classList.add('selected');
+      closeAll();
+      if (onChange) onChange(opt.value);
+    });
+    dropdown.appendChild(item);
+  });
+
+  display.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = dropdown.classList.contains('open');
+    closeAll();
+    if (!isOpen) { dropdown.classList.add('open'); display.classList.add('open'); }
+  });
+}
+
+// ── Form ──────────────────────────────────────────────────────
+function showForm() {
+  const body = createRow('bot');
+  typeText("Fill in the details below to export your invoices.", body).then(() => {
+    const form = document.createElement('div');
+    form.className = 'form-block';
+    form.innerHTML = `
+      <div class="field-wrap">
+        <label class="field-label">Start date <span class="req">*</span></label>
+        <div class="date-input-wrap" id="cal_start">
+          <div class="date-display placeholder" id="disp_start_date">Select a date</div>
+          <span class="date-cal-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </span>
+          <div class="date-picker-popup" id="popup_start"></div>
+          <input type="hidden" id="f_start_date">
+        </div>
+      </div>
+      <div class="field-wrap">
+        <label class="field-label">End date <span class="req">*</span></label>
+        <div class="date-input-wrap" id="cal_end">
+          <div class="date-display placeholder" id="disp_end_date">Select a date</div>
+          <span class="date-cal-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </span>
+          <div class="date-picker-popup" id="popup_end"></div>
+          <input type="hidden" id="f_end_date">
+        </div>
+      </div>
+
+      <button class="next-btn" id="submitBtn">Submit</button>
+    `;
+    body.appendChild(form);
+
+    buildCalendar('cal_start', 'disp_start_date', 'f_start_date');
+    buildCalendar('cal_end', 'disp_end_date', 'f_end_date');
+
+
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      submitForm();
+    });
+
+    scrollBot();
+  });
+}
+
+function submitForm() {
+  const startDate = document.getElementById('f_start_date')?.value || '';
+  const endDate = document.getElementById('f_end_date')?.value || '';
+
+  if (!startDate) { alert('Please select a start date.'); return; }
+  if (!endDate) { alert('Please select an end date.'); return; }
+  if (startDate > endDate) { alert('Start date must be before end date.'); return; }
+
+  disableForms();
+
+  const payload = {
+    start_date: startDate,
+    end_date: endDate
+  };
+
+  botMsg('Creating export file. This takes about 30 seconds… ⏳').then(() => {
+    showWaiting();
+    fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.text())
+    .then(text => {
+      hideWaiting();
+      showResult(text);
+    })
+    .catch(() => {
+      hideWaiting();
+      botMsg('Something went wrong. Please try again.');
+      document.getElementById('submitBtn') && (document.getElementById('submitBtn').disabled = false);
+    });
+  });
+}
+
+function showResult(text) {
+  const body = createRow('bot');
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = 'Here you go:';
+  body.appendChild(bubble);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'result-wrap';
+  wrap.innerHTML = text;
+  body.appendChild(wrap);
+
+  scrollBot();
+
+  setTimeout(() => {
+    botMsg("Create another?").then(b => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.2rem;';
+
+      const yesBtn = document.createElement('button');
+      yesBtn.className = 'next-btn';
+      yesBtn.textContent = 'Yes, start over';
+      yesBtn.addEventListener('click', () => {
+        yesBtn.disabled = true;
+        noBtn.disabled = true;
+        fullReset();
+      });
+
+      const noBtn = document.createElement('button');
+      noBtn.className = 'next-btn';
+      noBtn.style.background = 'transparent';
+      noBtn.style.color = 'var(--text)';
+      noBtn.style.border = '1px solid var(--border)';
+      noBtn.textContent = "No, I'm done";
+      noBtn.addEventListener('click', () => {
+        yesBtn.disabled = true;
+        noBtn.disabled = true;
+        botMsg("Ok, bye. 👋").then(() => {
+          const note = document.createElement('div');
+          note.className = 'ended-note';
+          note.textContent = '— Chat ended —';
+          msgsEl().appendChild(note);
+          scrollBot();
+          activeConversation = false;
+        });
+      });
+
+      row.appendChild(yesBtn);
+      row.appendChild(noBtn);
+      b.appendChild(row);
+      scrollBot();
+    });
+  }, 600);
+}
+
+document.getElementById('globalRestartBtn').addEventListener('click', () => fullReset());
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => showForm(), 500);
+});
+</script>
+</body>
+</html>
