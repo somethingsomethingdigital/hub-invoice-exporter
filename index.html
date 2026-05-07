@@ -449,6 +449,7 @@
       </div>
       <span class="hero-title">Hub Invoice Exporter</span>
       <span class="hero-subtitle">Export invoices by date range. Fill in the details below to get your export.</span>
+
     </div>
   </div>
 
@@ -671,7 +672,7 @@ function buildSelect(wrapId, displayId, hiddenId, options, onChange) {
 // ── Form ──────────────────────────────────────────────────────
 function showForm() {
   const body = createRow('bot');
-  typeText("Fill in the details below to export your invoices.", body).then(() => {
+  typeText("Select the export period.", body).then(() => {
     const form = document.createElement('div');
     form.className = 'form-block';
     form.innerHTML = `
